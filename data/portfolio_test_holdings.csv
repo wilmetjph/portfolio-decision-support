@@ -1,0 +1,7 @@
+asset,asset_class,quantity
+ASML,Equity,12
+Nestle,Equity,30
+Global_Equity_ETF,Equity,45
+Green_Bond,Bond,80
+Investment_Grade_Bond,Bond,60
+Cash,Cash,5000
