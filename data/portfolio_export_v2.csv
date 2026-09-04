@@ -1,0 +1,6 @@
+portfolio_id,valuation_date,instrument_id,isin,ticker,asset_name,asset_class,currency,quantity,latest_price,market_value_eur
+PF-001,2026-08-31,MSFT,US5949181045,MSFT,Microsoft,Equity,USD,25,410.50,8800.00
+PF-001,2026-08-31,LVMH,FR0000121014,MC.PA,LVMH,Equity,EUR,15,525.20,7878.00
+PF-001,2026-08-31,GOV_BOND_01,,GOV_BOND,Euro Government Bond,Bond,EUR,10000,98.40,9840.00
+PF-001,2026-08-31,CORP_BOND_01,,CORP_BOND,Corporate Bond,Bond,EUR,7500,101.25,7593.75
+PF-001,2026-08-31,CASH_EUR,,CASH_EUR,Cash,Cash,EUR,5000,1.00,5000.00

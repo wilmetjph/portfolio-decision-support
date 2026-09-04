@@ -62,14 +62,18 @@ class PortfolioMonitor:
         ]
         
         return concentrated[
-            ["asset", "weight", "market_value"]
+            [
+                "instrument_id",
+                "asset_name",
+                "asset_class",
+                "weight",
+                "market_value_eur"
+            ]
         ].round(2)
 
 def main():
     portfolio = Portfolio(
-        holdings_path="data/holdings.csv",
-        prices_path="data/prices.csv",
-        benchmark="Benchmark"
+        portfolio_path="data/portfolio_export_v2.csv"
     )
 
     targets = {
