@@ -86,7 +86,7 @@ class Portfolio:
             raise ValueError("The file must contain exactly one valuation date.")
         if positions["instrument_id"].duplicated().any():
             raise ValueError("Duplicate instruments found.")
-        
+
         cash_positions = positions[positions["asset_class"] == "Cash"]
         if len(cash_positions) != 1:
             raise ValueError(
