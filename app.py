@@ -16,46 +16,20 @@ st.write(
     "and concentration risks."
 )
 
-holdings_file = st.file_uploader(
-    "Upload holdings",
+portfolio_file = st.file_uploader(
+    "Upload portfolio export",
     type="csv"
 )
 
-prices_file = st.file_uploader(
-    "Upload price history",
-    type="csv"
-)
-
-if holdings_file is None or prices_file is None:
-    st.info("Upload both CSV files to start the analysis.")
+if portfolio_file is None:
+    st.info(
+        "Upload a portfolio CSV file to start the analysis."
+    )
     st.stop()
-
-prices_file.seek(0)
-
-price_columns = pd.read_csv(
-    prices_file,
-    nrows=0
-).columns.tolist()
-
-available_benchmark = [
-    column
-    for column in price_columns
-    if column != "date"
-]
-
-benchmark = st.selectbox(
-    "Select the benchmark",
-    available_benchmark
-)
-
-holdings_file.seek(0)
-prices_file.seek(0)
 
 try:
     portfolio = Portfolio(
-        holdings_path=holdings_file,
-        prices_path=prices_file,
-        benchmark=benchmark
+        portfolio_path=portfolio_file
     )
 
 except ValueError as error:
@@ -65,6 +39,56 @@ except ValueError as error:
 st.metric(
     "Total portfolio value",
     f"€{portfolio.get_total_value():,.2f}"
+)
+
+st.subheader("Portfolio overview")
+positions_display=(
+    portfolio
+    .calculate_position_values()
+    [
+        [
+            "instrument_id",
+            "asset_name",
+            "asset_class",
+            "currency",
+            "quantity",
+            "latest_price",
+            "market_value_eur",
+            "weight"
+        ]
+    ]
+    .copy()
+)
+positions_display["weight"] = (
+    positions_display["weight"]/100
+)
+st.dataframe(
+    positions_display,
+    hide_index=True,
+    width="stretch",
+    column_config={
+        "instrument_id": "Instrument ID",
+        "asset_name": "Asset",
+        "asset_class": "Asset class",
+        "currency": "Currency",
+        "quantity": st.column_config.NumberColumn(
+            "Quantity",
+            format="localized"
+        ),
+        "latest_price": st.column_config.NumberColumn(
+            "Latest price",
+            format="%.2f"
+        ),
+        "market_value_eur": st.column_config.NumberColumn(
+            "Market value",
+            format="euro"
+        ),
+        "weight": st.column_config.NumberColumn(
+            "Weight",
+            format="percent",
+            step=0.0001
+        )
+    }
 )
 
 st.sidebar.header("Target allocation")
@@ -102,7 +126,7 @@ monitor = PortfolioMonitor(
 
 st.subheader("Allocation analysis")
 allocation_comparison = monitor.compare_allocation()
-allocation_display = allocation_comparison.astype(float)
+allocation_display = allocation_comparison.astype(float) / 100
 
 st.dataframe(
     allocation_display,
@@ -110,15 +134,18 @@ st.dataframe(
     column_config={
         "actual": st.column_config.NumberColumn(
             "Actual",
-            format="%.2f"
+            format="percent",
+            step=0.0001
         ),
         "target": st.column_config.NumberColumn(
             "Target",
-            format="%.2f"
+            format="percent",
+            step=0.0001
         ),
         "deviation": st.column_config.NumberColumn(
             "Deviation",
-            format="%.2f"
+            format="percent",
+            step=0.0001
         )
     }
 )
@@ -127,11 +154,10 @@ chart_data = allocation_comparison[
 ]
 st.bar_chart(
     chart_data,
-    stack=False,
     width="stretch"
 )
 
-st.subheader("Rebalancing recommandations")
+st.subheader("Rebalancing recommendations")
 alerts = monitor.generate_alerts()
 alerts_df = pd.DataFrame(alerts)
 if not alerts_df.empty:
@@ -141,7 +167,7 @@ if not alerts_df.empty:
 )/100
     alerts_display["amount"] = pd.to_numeric(
     alerts_display["amount"]
-)/100
+)
     alerts_display["status"] = alerts_display["status"].str.capitalize()
     st.dataframe(
         alerts_display,
@@ -172,21 +198,24 @@ concentrations_display = concentrations.copy()
 concentrations_display["weight"] = pd.to_numeric(
     concentrations_display["weight"]
 )/100
-concentrations_display["market_value"] = pd.to_numeric(
-    concentrations_display["market_value"]
-)/100
+concentrations_display["market_value_eur"] = pd.to_numeric(
+    concentrations_display["market_value_eur"]
+)
 if not concentrations_display.empty:
     st.dataframe(
         concentrations_display,
         hide_index=True,
         width="stretch",
         column_config={
-            "asset": "Asset",
+            "instrument_id": "Instrument ID",
+            "asset_name" : "Asset",
+            "asset_class": "Asset class",
             "weight": st.column_config.NumberColumn(
                 "Weight",
-                format="percent"
+                format="percent",
+                step=0.0001
             ),
-            "market_value": st.column_config.NumberColumn(
+            "market_value_eur": st.column_config.NumberColumn(
                 "Market value",
                 format="euro"
             )
@@ -196,3 +225,56 @@ else:
     st.success(
         "No position exceeds the concentration limit."
     )
+
+st.subheader("Rebalancing simulator")
+tradable_positions = portfolio.positions[
+    portfolio.positions["asset_class"] != "Cash"
+]
+tradable_instruments = (
+    tradable_positions["instrument_id"]
+    .tolist()
+)
+selected_instrument = st.selectbox(
+    "Select an instrument",
+    tradable_instruments
+)
+
+selected_action = st.selectbox(
+    "Select an action",
+    ["BUY", "SELL"]
+)
+
+trade_quantity = st.number_input(
+    "Trade quantity",
+    min_value=0.01,
+    value=1.0,
+    step=1.0
+)
+
+if st.button("Simulate trade"):
+    try:
+        projected_positions = portfolio.simulate_trade(
+            selected_instrument,
+            selected_action,
+            trade_quantity
+        )
+
+        current_allocation = portfolio.calculate_asset_class_allocation()
+        project_allocation = portfolio.calculate_asset_class_allocation(projected_positions)
+        allocation_comparison = pd.DataFrame({
+            "Before": current_allocation,
+            "After": project_allocation
+        }).fillna(0)
+
+        st.subheader("Projected allocation")
+        st.dataframe(
+            allocation_comparison.round(2),
+            use_container_width=True
+        )
+        st.bar_chart(
+            allocation_comparison,
+            stack=False,
+            use_container_width=True
+        )
+    except ValueError as error:
+        st.error(str(error))
