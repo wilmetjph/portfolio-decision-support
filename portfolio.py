@@ -86,6 +86,12 @@ class Portfolio:
             raise ValueError("The file must contain exactly one valuation date.")
         if positions["instrument_id"].duplicated().any():
             raise ValueError("Duplicate instruments found.")
+        
+        cash_positions = positions[positions["asset_class"] == "Cash"]
+        if len(cash_positions) != 1:
+            raise ValueError(
+                "The portfolio must contain exactly one cash position."
+            )
 
         return positions
 
@@ -215,12 +221,6 @@ def main():
         action="BUY",
         quantity=5
     )
-
-    display_columns = [
-        "instrument_id",
-        "quantity",
-        "market_value_eur"
-    ]
 
     print("Initial allocation:")
     print(portfolio.calculate_asset_class_allocation())
